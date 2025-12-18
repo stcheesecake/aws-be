@@ -1,0 +1,118 @@
+package com.BMS.backend.service;
+
+import com.BMS.backend.domain.User;
+import com.BMS.backend.dto.Book.BookCoverUpdateRequest;
+import com.BMS.backend.dto.Book.BookCreateRequest;
+import com.BMS.backend.dto.Book.BookUpdateRequest;
+import com.BMS.backend.dto.Cover.CoverGenerateRequest;
+import com.BMS.backend.dto.Cover.DalleRequest;
+import com.BMS.backend.dto.Cover.DalleResponse;
+import com.BMS.backend.exception.CustomException;
+import com.BMS.backend.repository.UserRepository;
+import com.BMS.backend.domain.Book;
+import com.BMS.backend.repository.BookRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final UserRepository userRepository;
+    private final WebClient openAiWebClient;
+
+    public List<Book> getAllBooks() {
+        return bookRepository.findAll();
+    }
+
+    public List<Book> getMyBooks(Long userId) {
+        return bookRepository.findByUserId(userId);
+    }
+
+    public Book getBook(Long id) {
+        return bookRepository.findById(id)
+                .orElseThrow(()-> new CustomException("Cannot find Book with id " + id, HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public Book createBook(BookCreateRequest request, Long userId) {
+        // User 존재 확인
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found with id: " + userId, HttpStatus.NOT_FOUND));
+
+        Book book = Book.builder()
+                .title(request.getTitle())
+                .author(request.getAuthor())
+                .description(request.getDescription())
+                .user(user)
+                .build();
+        return bookRepository.save(book);
+    }
+
+    @Transactional
+    public Book updateBook(Long id, BookUpdateRequest request, Long userId) {
+        // 책이 존재하는지 확인
+        Book existingBook = getVerifiedBook(id, userId);
+        // 책 정보 업데이트
+        existingBook.update(
+                request.getTitle(),
+                request.getAuthor(),
+                request.getDescription()
+        );
+        return bookRepository.save(existingBook);
+    }
+
+    @Transactional
+    public void deleteBook(Long id, Long userId) {
+        Book existingBook = getVerifiedBook(id, userId);
+        bookRepository.delete(existingBook);
+    }
+
+    @Transactional
+    public Book updateBookCover(Long id, BookCoverUpdateRequest request, Long userId) {
+        Book book = getVerifiedBook(id, userId);
+        book.setCoverImageUrl(request.getBookCoverUrl());
+        return bookRepository.save(book);
+    }
+
+    @Transactional
+    public Book genCover(Long id, CoverGenerateRequest request, Long userId) {
+        Book book = getVerifiedBook(id, userId);
+
+        DalleRequest dalleRequest = new DalleRequest();
+        dalleRequest.setPrompt(request.getPrompt());
+
+        DalleResponse dalleResponse = openAiWebClient.post()
+                .uri("/images/generations")
+                .bodyValue(dalleRequest)
+                .retrieve()
+                .bodyToMono(DalleResponse.class)
+                .block();
+
+        String imageUrl = dalleResponse.getData().get(0).getUrl();
+        book.setCoverImageUrl(imageUrl);
+        System.out.println("### dalleResponse = " + dalleResponse);
+        System.out.println("### url = " + dalleResponse.getData().get(0).getUrl());
+        return bookRepository.save(book);
+    }
+
+    private Book getVerifiedBook(Long id, Long userId){
+        // 책이 존재하는지 확인
+        Book book = bookRepository.findById(id)
+                .orElseThrow(() -> new CustomException("Book not found with id: " + id,   HttpStatus.NOT_FOUND));
+
+        // 권한 체크: 본인의 책인지 확인
+        if (book.getUser() == null || !book.getUser().getId().equals(userId)) {
+            throw new CustomException("You don't have permission to delete this book",  HttpStatus.FORBIDDEN);
+        }
+        return book;
+    }
+}

@@ -1,0 +1,31 @@
+# 개발 환경에서 사용할 파일
+
+spring:
+  application:
+    name: backend
+
+  # H2 Database 설정
+  datasource:
+    url: jdbc:h2:~/bmsdb
+    driver-class-name: org.h2.Driver
+    username: aivle-bms
+    password: ${DB_PASSWORD}
+
+  # H2 Console 활성화
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: none
+      show-sql: true
+# 서버 포트 설정
+server:
+  port: 8080
+
+app:
+  jwtSecret: ${JWT_SECRET} # 나중에 .env로 설정해야 합니다.
+  jwtExpirationInMs: 3600000
