@@ -2,16 +2,22 @@
 
 echo "BMS Backend 시작"
 
-# 배포된 애플리케이션 디렉토리로 이동
-cd /home/ec2-user/bms || exit 1
+APP_DIR=/home/ec2-user/bms
 
-# Gradle이 생성한 JAR 파일 자동 탐색
-# plain.jar 같은 불필요한 파일 제외
+# 디렉토리 없으면 생성
+mkdir -p $APP_DIR
+cd $APP_DIR || exit 1
+
+# JAR 파일 찾기 (plain 제외)
 JAR_FILE=$(ls build/libs/*.jar | grep -v plain | head -n 1)
+
+if [ -z "$JAR_FILE" ]; then
+  echo "JAR 파일을 찾을 수 없음"
+  exit 1
+fi
 
 echo "실행할 JAR 파일: $JAR_FILE"
 
-# 백그라운드 실행 (세션 종료돼도 계속 실행됨)
 nohup java -jar \
   -Dspring.profiles.active=prod \
   "$JAR_FILE" \
