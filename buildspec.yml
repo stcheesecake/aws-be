@@ -6,16 +6,14 @@ phases:
       java: corretto17
     commands:
       - echo "Using Java 17"
+
   build:
     commands:
-      - echo "Building Spring Boot application"
       - chmod +x ./gradlew
-      - ./gradlew build -x test
-# CodeDeploy로 전달할 배포 묶음 정의
+      - ./gradlew clean build -x test
+
 artifacts:
   files:
     - appspec.yml
-    - deploy-scripts/stop.sh
-    - deploy-scripts/start.sh
+    - deploy-scripts/**/*
     - build/libs/*.jar
-  discard-paths: no
