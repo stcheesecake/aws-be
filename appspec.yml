@@ -1,0 +1,19 @@
+version: 0.0
+os: linux
+
+files:
+  - source: /   # CodeDeploy가 받은 배포 묶음을 루트에서부터 전부 복사
+    destination: /home/ec2-user/bms  # EC2 안에서 여기로 복사
+    overwrite: yes # 기존 파일 덮어쓰기
+
+hooks:
+  ApplicationStop:  # 배포 시작할 때, 기존에 돌고 있는 앱을 내리기 위한 단계
+    - location: deploy-scripts/stop.sh # 이파일 실행
+      timeout : 60  # 60안에 끝내야 하고, 이 안에 안끝나면 배포 실패 처리
+      runas: ec2-user # 이 스크립트를 어떤 사용자 권한으로 할지
+
+  ApplicationStart:
+    - location: deploy-scripts/start.sh
+      timeout : 300
+      runas: ec2-user
+    
