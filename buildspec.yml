@@ -11,6 +11,11 @@ phases:
       - echo "Building Spring Boot application"
       - chmod +x ./gradlew
       - ./gradlew build -x test
+# CodeDeploy로 전달할 배포 묶음 정의
 artifacts:
   files:
+    - appspec.yml
+    - deploy-scripts/stop.sh
+    - deploy-scripts/start.sh
     - build/libs/*.jar
+  discard-paths: no
